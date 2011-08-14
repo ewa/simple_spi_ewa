@@ -47,8 +47,7 @@
 //
 // Change History:
 //
-`include "timescale.v"
-
+`timescale 1ns/1ps
 module wb_master_model(clk, rst, adr, din, dout, cyc, stb, we, sel, ack, err, rty);
 
 parameter dwidth = 32;
