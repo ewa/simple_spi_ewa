@@ -86,12 +86,14 @@ module simple_spi_top(
   // SPI port
   output reg        sck_o,         // serial clock output
   output wire       mosi_o,        // MasterOut SlaveIN
-  input  wire       miso_i         // MasterIn SlaveOut
+  output reg        csb,           // chip select bar
+  input  wire       miso_i         // MasterIn SlaveOut  
 );
-
+ 
+  parameter combine_words = 1'b1;  // No idle cycle between consecutive writes 
   //
   // Module body
-  //
+  //   
   reg  [7:0] spcr;       // Serial Peripheral Control Register ('HC11 naming)
   wire [7:0] spsr;       // Serial Peripheral Status register ('HC11 naming)
   reg  [7:0] sper;       // Serial Peripheral Extension register
@@ -265,6 +267,7 @@ module simple_spi_top(
       begin
          wfre <= #1 1'b0;
          rfwe <= #1 1'b0;
+		 
 
          case (state) //synopsys full_case parallel_case
            2'b00: // idle state
@@ -272,10 +275,12 @@ module simple_spi_top(
                   bcnt  <= #1 3'h7;   // set transfer counter
                   treg  <= #1 wfdout; // load transfer register
                   sck_o <= #1 cpol;   // set sck
+                  csb <= #1 1'b1;     // chip select off (active low)
 
                   if (~wfempty) begin
                     wfre  <= #1 1'b1;
                     state <= #1 2'b01;
+                    csb <= #1 1'b0;
                     if (cpha) sck_o <= #1 ~sck_o;
                   end
               end
@@ -294,6 +299,9 @@ module simple_spi_top(
                 if (~|bcnt) begin
                   state <= #1 2'b00;
                   sck_o <= #1 cpol;
+                   if (~combine_words) begin
+                      csb   <= #1 1'b1;
+                   end
                   rfwe  <= #1 1'b1;
                 end else begin
                   state <= #1 2'b01;
