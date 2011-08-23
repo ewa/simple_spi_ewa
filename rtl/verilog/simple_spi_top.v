@@ -281,20 +281,25 @@ module simple_spi_top(
                   csb <= #1 1'b1;     // chip select off (active low)
 
                   if (~wfempty) begin
-                    wfre  <= #1 1'b1;
-                    state <= #1 3'b001;
-                    csb <= #1 1'b0;
-                    if (cpha) sck_o <= #1 ~sck_o;
+					csb <= #1 1'b0;
+					state <= 3'b001;
                   end
-              end
+              end // case: 3'b000
 
-           3'b001: // clock-phase2, next data
+		   3'b001: // start transfer for real
+			 if (ena) begin
+				wfre  <= #1 1'b1;
+                state <= #1 3'b011;
+                if (cpha) sck_o <= #1 ~sck_o;
+			 end
+
+           3'b011: // clock-phase2, next data
               if (ena) begin
                 sck_o   <= #1 ~sck_o;
-                state   <= #1 3'b011;
+                state   <= #1 3'b010;
               end
 
-           3'b011: // clock phase1
+           3'b010: // clock phase1
               if (ena) begin
                 treg <= #1 {treg[6:0], miso_i};
                 bcnt <= #1 bcnt -3'h1;
@@ -307,12 +312,10 @@ module simple_spi_top(
                    end
                   rfwe  <= #1 1'b1;
                 end else begin
-                  state <= #1 3'b001;
+                  state <= #1 3'b011;
                   sck_o <= #1 ~sck_o;
                 end
               end
-
-           3'b010: state <= #1 3'b000;
          endcase
       end
 
