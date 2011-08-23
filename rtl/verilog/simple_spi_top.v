@@ -174,14 +174,16 @@ module simple_spi_top(
 
   wire [3:0] espr = {spre, spr};
 
-  // generate status register
+  // generate status register (current write is to SPSR)
   wire wr_spsr = wb_wr & (adr_i == 2'b01);
-
+  wire wr_sper = wb_wr & (adr_i == 2'b11);
+   
   reg spif;
   always @(posedge clk_i)
     if (~spe)
       spif <= #1 1'b0;
     else
+	  // hold if set, set if tirq, clear if writing 1 to SPSR[7] (SPIF) 
       spif <= #1 (tirq | spif) & ~(wr_spsr & dat_i[7]);
 
   reg wcol;
@@ -327,6 +329,8 @@ module simple_spi_top(
   always @(posedge clk_i)
     if (~spe)
       tcnt <= #1 icnt;
+    else if (wr_sper) // "short-circuit" new icnt into tcnt if SPER is written
+	  tcnt <= #1 dat_i[7:6];
     else if (rfwe) // rfwe gets asserted when all bits have been transfered
       if (|tcnt)
         tcnt <= #1 tcnt - 2'h1;
