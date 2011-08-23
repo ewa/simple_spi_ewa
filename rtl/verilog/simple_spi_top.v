@@ -43,6 +43,9 @@
 //  $State: Exp $
 //
 // Change History:
+//               Un-numbered revision: 2011/08 Eric Anderson
+//               Added CSB, and associated run-tx-together parameter
+//
 //               $Log: not supported by cvs2svn $
 //               Revision 1.4  2003/08/01 11:41:54  rherveille
 //               Fixed some timing bugs.
@@ -109,7 +112,7 @@ module simple_spi_top(
   // misc signals
   wire      tirq;     // transfer interrupt (selected number of transfers done)
   wire      wfov;     // write fifo overrun (writing while fifo full)
-  reg [1:0] state;    // statemachine state
+  reg [2:0] state;    // statemachine state
   reg [2:0] bcnt;
 
   //
@@ -256,7 +259,7 @@ module simple_spi_top(
   always @(posedge clk_i)
     if (~spe)
       begin
-          state <= #1 2'b00; // idle
+          state <= #1 3'b000; // idle
           bcnt  <= #1 3'h0;
           treg  <= #1 8'h00;
           wfre  <= #1 1'b0;
@@ -270,7 +273,7 @@ module simple_spi_top(
 		 
 
          case (state) //synopsys full_case parallel_case
-           2'b00: // idle state
+           3'b000: // idle state
               begin
                   bcnt  <= #1 3'h7;   // set transfer counter
                   treg  <= #1 wfdout; // load transfer register
@@ -279,37 +282,37 @@ module simple_spi_top(
 
                   if (~wfempty) begin
                     wfre  <= #1 1'b1;
-                    state <= #1 2'b01;
+                    state <= #1 3'b001;
                     csb <= #1 1'b0;
                     if (cpha) sck_o <= #1 ~sck_o;
                   end
               end
 
-           2'b01: // clock-phase2, next data
+           3'b001: // clock-phase2, next data
               if (ena) begin
                 sck_o   <= #1 ~sck_o;
-                state   <= #1 2'b11;
+                state   <= #1 3'b011;
               end
 
-           2'b11: // clock phase1
+           3'b011: // clock phase1
               if (ena) begin
                 treg <= #1 {treg[6:0], miso_i};
                 bcnt <= #1 bcnt -3'h1;
 
                 if (~|bcnt) begin
-                  state <= #1 2'b00;
+                  state <= #1 3'b000;
                   sck_o <= #1 cpol;
                    if (~combine_words) begin
                       csb   <= #1 1'b1;
                    end
                   rfwe  <= #1 1'b1;
                 end else begin
-                  state <= #1 2'b01;
+                  state <= #1 3'b001;
                   sck_o <= #1 ~sck_o;
                 end
               end
 
-           2'b10: state <= #1 2'b00;
+           3'b010: state <= #1 3'b000;
          endcase
       end
 
