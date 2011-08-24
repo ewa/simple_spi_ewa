@@ -306,9 +306,15 @@ module simple_spi_top(
                 treg <= #1 {treg[6:0], miso_i};
                 bcnt <= #1 bcnt -3'h1;
 
+				// This word is done.
                 if (~|bcnt) begin
-                  state <= #1 3'b000;
-                  sck_o <= #1 cpol;
+				   if (wfempty) begin
+					  state <= #1 3'b000;
+					  sck_o <= #1 cpol;
+				   end else begin
+					  state <= #1 3'b100;
+					  sck_o <= #1 ~sck_o;
+				   end
                    if (~combine_words) begin
                       csb   <= #1 1'b1;
                    end
@@ -317,7 +323,26 @@ module simple_spi_top(
                   state <= #1 3'b011;
                   sck_o <= #1 ~sck_o;
                 end
-              end
+              end // if (ena)
+
+		   3'b100:				// Parallel-idle
+			 begin
+                bcnt  <= #1 3'h7;   // set transfer counter
+                treg  <= #1 wfdout; // load transfer register
+                sck_o <= #1 cpol;   // set sck
+                csb <= #1 1'b1;     // chip select off (active low)
+				
+                if (~wfempty) begin
+				   sck_o <= #1 ~sck_o; // Keep clock ticking.
+				   csb <= #1 1'b0;				   
+				   state <= 3'b001;
+				   if (ena) begin
+					  wfre  <= #1 1'b1;
+					  state <= #1 3'b011;
+					  if (cpha) sck_o <= #1 ~sck_o;
+				   end
+                end				
+             end // case: 3'b000
          endcase
       end
 
