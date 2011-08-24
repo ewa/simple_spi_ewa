@@ -303,7 +303,8 @@ module simple_spi_top(
 
            3'b010: // clock phase1
               if (ena) begin
-                treg <= #1 {treg[6:0], miso_i};
+				 $display($time, " registering input AND asserting output");
+                treg <= #1 {treg[6:0], miso_i};				 
                 bcnt <= #1 bcnt -3'h1;
 
 				// This word is done.
@@ -312,7 +313,10 @@ module simple_spi_top(
 					  state <= #1 3'b000;
 					  sck_o <= #1 cpol;
 				   end else begin
-					  state <= #1 3'b100;
+					  state <= #1 3'b011;
+					  bcnt  <= #1 3'h7;   // set transfer counter
+					  treg  <= #1 wfdout; // load transfer register
+					  wfre  <= #1 1'b1;					  
 					  sck_o <= #1 ~sck_o;
 				   end
                    if (~combine_words) begin
@@ -325,24 +329,24 @@ module simple_spi_top(
                 end
               end // if (ena)
 
-		   3'b100:				// Parallel-idle
-			 begin
-                bcnt  <= #1 3'h7;   // set transfer counter
-                treg  <= #1 wfdout; // load transfer register
-                sck_o <= #1 cpol;   // set sck
-                csb <= #1 1'b1;     // chip select off (active low)
+		   // 3'b100:				// Parallel-idle
+		   // 	 begin
+           //      bcnt  <= #1 3'h7;   // set transfer counter
+           //      treg  <= #1 wfdout; // load transfer register
+           //      sck_o <= #1 cpol;   // set sck
+           //      csb <= #1 1'b1;     // chip select off (active low)
 				
-                if (~wfempty) begin
-				   sck_o <= #1 ~sck_o; // Keep clock ticking.
-				   csb <= #1 1'b0;				   
-				   state <= 3'b001;
-				   if (ena) begin
-					  wfre  <= #1 1'b1;
-					  state <= #1 3'b011;
-					  if (cpha) sck_o <= #1 ~sck_o;
-				   end
-                end				
-             end // case: 3'b000
+           //      if (~wfempty) begin
+		   // 		   sck_o <= #1 ~sck_o; // Keep clock ticking.
+		   // 		   csb <= #1 1'b0;				   
+		   // 		   state <= 3'b001;
+		   // 		   if (ena) begin
+		   // 			  wfre  <= #1 1'b1;
+		   // 			  state <= #1 3'b011;
+		   // 			  if (cpha) sck_o <= #1 ~sck_o;
+		   // 		   end
+           //      end				
+           //   end // case: 3'b100		   
          endcase
       end
 
