@@ -88,7 +88,7 @@ module simple_spi_top(
 
   // SPI port
   output reg        sck_o,         // serial clock output
-  output wire       mosi_o,        // MasterOut SlaveIN
+  output reg        mosi_o,        // MasterOut SlaveIN
   output reg        csb,           // chip select bar
   input  wire       miso_i         // MasterIn SlaveOut  
 );
@@ -280,11 +280,13 @@ module simple_spi_top(
                   bcnt  <= #1 3'h7;   // set transfer counter
                   treg  <= #1 wfdout; // load transfer register
                   sck_o <= #1 cpol;   // set sck
-                  csb <= #1 1'b1;     // chip select off (active low)
-
-                  if (~wfempty) begin
-					csb <= #1 1'b0;
-					state <= 3'b001;
+				  if (wfempty) begin
+				    csb    <= #1 1'b1;// chip select off (active low)
+					mosi_o <= #1 1'bx;
+				  end else begin
+					csb    <= #1 1'b0;
+					mosi_o <= #1 wfdout[7];
+					state  <= #1 3'b001;
                   end
               end // case: 3'b000
 
@@ -304,7 +306,8 @@ module simple_spi_top(
            3'b010: // clock phase1
               if (ena) begin
 				 $display($time, " registering input AND asserting output");
-                treg <= #1 {treg[6:0], miso_i};				 
+                treg <= #1 {treg[6:0], miso_i};
+				mosi_o <= #1 treg[7];
                 bcnt <= #1 bcnt -3'h1;
 
 				// This word is done.
@@ -316,6 +319,7 @@ module simple_spi_top(
 					  state <= #1 3'b011;
 					  bcnt  <= #1 3'h7;   // set transfer counter
 					  treg  <= #1 wfdout; // load transfer register
+					  mosi_o <= #1 wfdout[7];
 					  wfre  <= #1 1'b1;					  
 					  sck_o <= #1 ~sck_o;
 				   end
@@ -349,9 +353,6 @@ module simple_spi_top(
            //   end // case: 3'b100		   
          endcase
       end
-
-  assign mosi_o = treg[7];
-
 
   // count number of transfers (for interrupt generation)
   reg [1:0] tcnt; // transfer count
