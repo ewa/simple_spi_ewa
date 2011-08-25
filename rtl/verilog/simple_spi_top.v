@@ -6,10 +6,16 @@
 ////          richard@asics.ws                                   ////
 ////          www.asics.ws                                       ////
 ////                                                             ////
+////  Modified: Eric Anderson                                    ////
+////          andersoe@ece.cmu.edu                               ////
+////          http://www.ece.cmu.edu/~andersoe/                  ////
+////                                                             ////
 /////////////////////////////////////////////////////////////////////
 ////                                                             ////
 //// Copyright (C) 2002 Richard Herveille                        ////
 ////                    richard@asics.ws                         ////
+////                                                             ////
+//// Copyright (C) 2011 Carnegie Mellon University               ////
 ////                                                             ////
 //// This source file may be used and distributed without        ////
 //// restriction provided that this copyright statement is not   ////
@@ -90,13 +96,13 @@ module simple_spi_top(
   output reg        sck_o,         // serial clock output
   output reg        mosi_o,        // MasterOut SlaveIN
   output reg        csb,           // chip select bar
-  input  wire       miso_i         // MasterIn SlaveOut  
+  input  wire       miso_i         // MasterIn SlaveOut
 );
- 
-  parameter combine_words = 1'b1;  // No idle cycle between consecutive writes 
+
+  parameter combine_words = 1'b1;  // No idle cycle between consecutive writes
   //
   // Module body
-  //   
+  //
   reg  [7:0] spcr;       // Serial Peripheral Control Register ('HC11 naming)
   wire [7:0] spsr;       // Serial Peripheral Status register ('HC11 naming)
   reg  [7:0] sper;       // Serial Peripheral Extension register
@@ -177,13 +183,13 @@ module simple_spi_top(
   // generate status register (current write is to SPSR)
   wire wr_spsr = wb_wr & (adr_i == 2'b01);
   wire wr_sper = wb_wr & (adr_i == 2'b11);
-   
+
   reg spif;
   always @(posedge clk_i)
     if (~spe)
       spif <= #1 1'b0;
     else
-	  // hold if set, set if tirq, clear if writing 1 to SPSR[7] (SPIF) 
+	  // hold if set, set if tirq, clear if writing 1 to SPSR[7] (SPIF)
       spif <= #1 (tirq | spif) & ~(wr_spsr & dat_i[7]);
 
   reg wcol;
@@ -200,7 +206,7 @@ module simple_spi_top(
   assign spsr[2]   = wfempty;
   assign spsr[1]   = rffull;
   assign spsr[0]   = rfempty;
-  
+
 
   // generate IRQ output (inta_o)
   always @(posedge clk_i)
@@ -272,7 +278,7 @@ module simple_spi_top(
       begin
          wfre <= #1 1'b0;
          rfwe <= #1 1'b0;
-		 
+
 
          case (state) //synopsys full_case parallel_case
            3'b000: // idle state
@@ -280,22 +286,22 @@ module simple_spi_top(
                   bcnt  <= #1 3'h7;   // set transfer counter
                   treg  <= #1 wfdout; // load transfer register
                   sck_o <= #1 cpol;   // set sck
-				  if (wfempty) begin
-				    csb    <= #1 1'b1;// chip select off (active low)
-					mosi_o <= #1 1'bx;
-				  end else begin
-					csb    <= #1 1'b0;
-					mosi_o <= #1 wfdout[7];
-					state  <= #1 3'b001;
+                  if (wfempty) begin
+                    csb    <= #1 1'b1;// chip select off (active low)
+                    mosi_o <= #1 1'bx;
+                  end else begin
+                    csb    <= #1 1'b0;
+                    mosi_o <= #1 wfdout[7];
+                    state  <= #1 3'b001;
                   end
               end // case: 3'b000
 
-		   3'b001: // start transfer for real
-			 if (ena) begin
-				wfre  <= #1 1'b1;
+           3'b001: // start transfer for real
+             if (ena) begin
+                wfre  <= #1 1'b1;
                 state <= #1 3'b011;
                 if (cpha) sck_o <= #1 ~sck_o;
-			 end
+             end
 
            3'b011: // clock-phase2, next data
               if (ena) begin
@@ -305,24 +311,24 @@ module simple_spi_top(
 
            3'b010: // clock phase1
               if (ena) begin
-				 $display($time, " registering input AND asserting output");
+                 $display($time, " registering input AND asserting output");
                 treg <= #1 {treg[6:0], miso_i};
-				mosi_o <= #1 treg[7];
+                mosi_o <= #1 treg[7];
                 bcnt <= #1 bcnt -3'h1;
 
-				// This word is done.
+                // This word is done.
                 if (~|bcnt) begin
-				   if (wfempty) begin
-					  state <= #1 3'b000;
-					  sck_o <= #1 cpol;
-				   end else begin
-					  state <= #1 3'b011;
-					  bcnt  <= #1 3'h7;   // set transfer counter
-					  treg  <= #1 wfdout; // load transfer register
-					  mosi_o <= #1 wfdout[7];
-					  wfre  <= #1 1'b1;					  
-					  sck_o <= #1 ~sck_o;
-				   end
+                   if (wfempty) begin
+                      state <= #1 3'b000;
+                      sck_o <= #1 cpol;
+                   end else begin
+                      state <= #1 3'b011;
+                      bcnt  <= #1 3'h7;   // set transfer counter
+                      treg  <= #1 wfdout; // load transfer register
+                      mosi_o <= #1 wfdout[7];
+                      wfre  <= #1 1'b1;
+                      sck_o <= #1 ~sck_o;
+                   end
                    if (~combine_words) begin
                       csb   <= #1 1'b1;
                    end
@@ -332,26 +338,7 @@ module simple_spi_top(
                   sck_o <= #1 ~sck_o;
                 end
               end // if (ena)
-
-		   // 3'b100:				// Parallel-idle
-		   // 	 begin
-           //      bcnt  <= #1 3'h7;   // set transfer counter
-           //      treg  <= #1 wfdout; // load transfer register
-           //      sck_o <= #1 cpol;   // set sck
-           //      csb <= #1 1'b1;     // chip select off (active low)
-				
-           //      if (~wfempty) begin
-		   // 		   sck_o <= #1 ~sck_o; // Keep clock ticking.
-		   // 		   csb <= #1 1'b0;				   
-		   // 		   state <= 3'b001;
-		   // 		   if (ena) begin
-		   // 			  wfre  <= #1 1'b1;
-		   // 			  state <= #1 3'b011;
-		   // 			  if (cpha) sck_o <= #1 ~sck_o;
-		   // 		   end
-           //      end				
-           //   end // case: 3'b100		   
-         endcase
+        endcase
       end
 
   // count number of transfers (for interrupt generation)
@@ -360,7 +347,7 @@ module simple_spi_top(
     if (~spe)
       tcnt <= #1 icnt;
     else if (wr_sper) // "short-circuit" new icnt into tcnt if SPER is written
-	  tcnt <= #1 dat_i[7:6];
+      tcnt <= #1 dat_i[7:6];
     else if (rfwe) // rfwe gets asserted when all bits have been transfered
       if (|tcnt)
         tcnt <= #1 tcnt - 2'h1;
@@ -369,5 +356,4 @@ module simple_spi_top(
 
   assign tirq = ~|tcnt & rfwe;
 
-endmodule
-
+endmodule // simple_spi_top
